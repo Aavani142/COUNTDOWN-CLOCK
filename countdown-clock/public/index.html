@@ -46,6 +46,23 @@
       </dl>
     </section>
 
+    <div class="toolbar">
+      <input id="searchInput" class="toolbar__search" type="search" placeholder="Search countdowns…" aria-label="Search countdowns" autocomplete="off" />
+      <div class="chips" id="statusFilters" role="group" aria-label="Filter by status">
+        <button type="button" class="chip" data-filter="all" aria-pressed="true">All</button>
+        <button type="button" class="chip" data-filter="running" aria-pressed="false">Running</button>
+        <button type="button" class="chip" data-filter="done" aria-pressed="false">Completed</button>
+      </div>
+      <select id="categoryFilter" class="toolbar__select" aria-label="Filter by category">
+        <option value="all">All categories</option>
+        <option value="personal">Personal</option>
+        <option value="work">Work</option>
+        <option value="travel">Travel</option>
+        <option value="celebration">Celebration</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+
     <div id="errorBanner" class="banner" role="alert" hidden>
       <span id="errorText"></span>
       <button type="button" class="banner__retry" id="retryBtn">Try again</button>
@@ -67,6 +84,7 @@
       <button type="button" class="btn btn--primary" id="emptyCreateBtn">Create your first countdown</button>
     </section>
 
+    <p id="noResults" class="no-results" hidden>No countdowns match your filters.</p>
     <section id="grid" class="grid" aria-label="Countdown list" hidden></section>
   </main>
 
@@ -92,6 +110,17 @@
           <input id="timeInput" name="time" type="time" required aria-describedby="timeError" />
           <p class="field__error" id="timeError" aria-live="polite"></p>
         </div>
+      </div>
+
+      <div class="field">
+        <label for="categoryInput">Category</label>
+        <select id="categoryInput" name="category" class="toolbar__select">
+          <option value="personal">Personal</option>
+          <option value="work">Work</option>
+          <option value="travel">Travel</option>
+          <option value="celebration">Celebration</option>
+          <option value="other" selected>Other</option>
+        </select>
       </div>
 
       <div class="field">

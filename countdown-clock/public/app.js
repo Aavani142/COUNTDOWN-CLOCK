@@ -3,7 +3,12 @@
 
   const API_URL = '/api/countdowns';
 
+  const categoryLabels = { personal: 'Personal', work: 'Work', travel: 'Travel', celebration: 'Celebration', other: 'Other' };
+
   const state = {
+    filter: 'all',
+    category: 'all',
+    query: '',
     countdowns: [],
     editingId: null,
     pendingDeleteId: null,
@@ -33,6 +38,10 @@
     confirmDialog: $('confirmDialog'),
     confirmText: $('confirmText'),
     confirmDeleteBtn: $('confirmDeleteBtn'),
+    categoryInput: $('categoryInput'),
+    searchInput: $('searchInput'),
+    categoryFilter: $('categoryFilter'),
+    noResults: $('noResults'),
   };
 
   /* ---------- API ---------- */
@@ -105,7 +114,20 @@
   }
 
   function sortByTarget(list) {
-    return [...list].sort((a, b) => Date.parse(a.targetDate) - Date.parse(b.targetDate));
+    return [...list].sort((a, b) =>
+      (Number(!!b.pinned) - Number(!!a.pinned)) || (Date.parse(a.targetDate) - Date.parse(b.targetDate)));
+  }
+
+  function getVisible() {
+    const now = Date.now();
+    const q = state.query.trim().toLowerCase();
+    return state.countdowns.filter((c) => {
+      const done = !!c.completed || Date.parse(c.targetDate) <= now;
+      if (state.filter === 'running' && done) return false;
+      if (state.filter === 'done' && !done) return false;
+      if (state.category !== 'all' && (c.category || 'other') !== state.category) return false;
+      return !q || `${c.title} ${c.description || ''}`.toLowerCase().includes(q);
+    });
   }
 
   /* ---------- Error banner ---------- */
@@ -123,13 +145,18 @@
   /* ---------- Rendering ---------- */
 
   function cardTemplate(countdown) {
+    const category = categoryLabels[countdown.category] ? countdown.category : 'other';
+    const canComplete = countdown.completed || Date.parse(countdown.targetDate) > Date.now();
     const description = countdown.description
       ? `<p class="card__desc">${escapeHtml(countdown.description)}</p>`
       : '';
     return `
-      <article class="card glass" data-id="${countdown._id}">
+      <article class="card glass${countdown.pinned ? ' card--pinned' : ''}" data-id="${countdown._id}" data-category="${category}">
         <div class="card__head">
-          <h3 class="card__title">${escapeHtml(countdown.title)}</h3>
+          <div>
+            <span class="tag">${categoryLabels[category]}</span>
+            <h3 class="card__title">${escapeHtml(countdown.title)}</h3>
+          </div>
           <span class="badge" data-role="status">Running</span>
         </div>
         ${description}
@@ -149,6 +176,8 @@
         <div class="card__foot">
           <span class="card__date">${formatTarget(countdown.targetDate)}</span>
           <div class="card__actions">
+            ${canComplete ? `<button type="button" class="icon-btn icon-btn--complete" data-action="complete" aria-label="${countdown.completed ? 'Reopen' : 'Mark as completed'}: ${escapeHtml(countdown.title)}">${countdown.completed ? 'Reopen' : 'Complete'}</button>` : ''}
+            <button type="button" class="icon-btn icon-btn--pin" data-action="pin" aria-pressed="${!!countdown.pinned}" aria-label="${countdown.pinned ? 'Unpin' : 'Pin'} ${escapeHtml(countdown.title)}">${countdown.pinned ? 'Unpin' : 'Pin'}</button>
             <button type="button" class="icon-btn" data-action="edit" aria-label="Edit ${escapeHtml(countdown.title)}">Edit</button>
             <button type="button" class="icon-btn icon-btn--danger" data-action="delete" aria-label="Delete ${escapeHtml(countdown.title)}">Delete</button>
           </div>
@@ -159,10 +188,12 @@
   function render() {
     const total = state.countdowns.length;
     el.loading.hidden = true;
+    const visible = getVisible();
     el.statTotal.textContent = total;
     el.emptyState.hidden = total !== 0;
-    el.grid.hidden = total === 0;
-    el.grid.innerHTML = state.countdowns.map(cardTemplate).join('');
+    el.noResults.hidden = total === 0 || visible.length !== 0;
+    el.grid.hidden = visible.length === 0;
+    el.grid.innerHTML = visible.map(cardTemplate).join('');
     tick();
   }
 
@@ -176,7 +207,7 @@
       if (!countdown) return;
 
       const remaining = Date.parse(countdown.targetDate) - now;
-      const isDone = remaining <= 0;
+      const isDone = remaining <= 0 || !!countdown.completed;
       if (isDone) completed += 1;
 
       const parts = getTimeParts(remaining);
@@ -197,8 +228,9 @@
       card.classList.toggle('card--done', isDone);
     });
 
-    el.statDone.textContent = completed;
-    el.statActive.textContent = state.countdowns.length - completed;
+    const done = state.countdowns.filter((c) => c.completed || Date.parse(c.targetDate) <= now).length;
+    el.statDone.textContent = done;
+    el.statActive.textContent = state.countdowns.length - done;
   }
 
   /* ---------- Loading data ---------- */
@@ -246,6 +278,7 @@
       el.dateInput.value = toDateInputValue(target);
       el.timeInput.value = toTimeInputValue(target);
       el.descriptionInput.value = countdown.description || '';
+      el.categoryInput.value = countdown.category || 'other';
     }
     el.formDialog.showModal();
     el.titleInput.focus();
@@ -298,7 +331,7 @@
 
     return {
       valid,
-      payload: valid ? { title, description, targetDate: targetDate.toISOString() } : null,
+      payload: valid ? { title, description, category: el.categoryInput.value, targetDate: targetDate.toISOString() } : null,
     };
   }
 
@@ -383,6 +416,8 @@
     const card = button.closest('.card');
     const countdown = state.countdowns.find((item) => item._id === card.dataset.id);
     if (!countdown) return;
+    if (button.dataset.action === 'complete') toggleComplete(countdown);
+    if (button.dataset.action === 'pin') togglePin(countdown);
     if (button.dataset.action === 'edit') openForm(countdown);
     if (button.dataset.action === 'delete') askToDelete(countdown);
   });
@@ -392,6 +427,36 @@
     dialog.addEventListener('click', (event) => {
       if (event.target === dialog) dialog.close();
     });
+  });
+
+  /* ---------- Pin, search and filters ---------- */
+
+  async function togglePin(countdown) {
+    try {
+      await request(`${API_URL}/${countdown._id}/pin`, { method: 'PATCH', body: JSON.stringify({ pinned: !countdown.pinned }) });
+      await loadCountdowns();
+    } catch (error) {
+      showError(error.message);
+    }
+  }
+
+  async function toggleComplete(countdown) {
+    try {
+      await request(`${API_URL}/${countdown._id}/complete`, { method: 'PATCH', body: JSON.stringify({ completed: !countdown.completed }) });
+      await loadCountdowns();
+    } catch (error) {
+      showError(error.message);
+    }
+  }
+
+  el.searchInput.addEventListener('input', () => { state.query = el.searchInput.value; render(); });
+  el.categoryFilter.addEventListener('change', () => { state.category = el.categoryFilter.value; render(); });
+  $('statusFilters').addEventListener('click', (event) => {
+    const chip = event.target.closest('[data-filter]');
+    if (!chip) return;
+    state.filter = chip.dataset.filter;
+    document.querySelectorAll('#statusFilters .chip').forEach((c) => c.setAttribute('aria-pressed', String(c === chip)));
+    render();
   });
 
   /* ---------- Start ---------- */

@@ -3,11 +3,9 @@ const mongoose = require('mongoose');
 const Countdown = require('../models/Countdown');
 
 const router = express.Router();
+const CATEGORIES = ['personal', 'work', 'travel', 'celebration', 'other'];
 
-/**
- * Validates and normalises the request body.
- * Returns { errors: string[], data: { title, description, targetDate } }.
- */
+
 function validatePayload(body) {
   const errors = [];
   const source = body && typeof body === 'object' ? body : {};
@@ -38,7 +36,10 @@ function validatePayload(body) {
     }
   }
 
-  return { errors, data: { title, description, targetDate } };
+  const category = source.category || 'other';
+  if (!CATEGORIES.includes(category)) errors.push('Category is not valid.');
+
+  return { errors, data: { title, description, targetDate, category } };
 }
 
 function rejectInvalidId(req, res) {
@@ -109,6 +110,40 @@ router.delete('/:id', async (req, res, next) => {
     const countdown = await Countdown.findByIdAndDelete(req.params.id);
     if (!countdown) return res.status(404).json({ error: 'Countdown not found.' });
     res.status(200).json({ message: 'Countdown deleted.', id: countdown.id });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/countdowns/:id/complete - mark done early or reopen
+router.patch('/:id/complete', async (req, res, next) => {
+  try {
+    if (rejectInvalidId(req, res)) return;
+    if (typeof req.body.completed !== 'boolean') {
+      return res.status(400).json({ error: 'completed must be true or false.' });
+    }
+    const countdown = await Countdown.findByIdAndUpdate(
+      req.params.id, { completed: req.body.completed }, { new: true }
+    );
+    if (!countdown) return res.status(404).json({ error: 'Countdown not found.' });
+    res.status(200).json(countdown);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PATCH /api/countdowns/:id/pin - pin or unpin
+router.patch('/:id/pin', async (req, res, next) => {
+  try {
+    if (rejectInvalidId(req, res)) return;
+    if (typeof req.body.pinned !== 'boolean') {
+      return res.status(400).json({ error: 'pinned must be true or false.' });
+    }
+    const countdown = await Countdown.findByIdAndUpdate(
+      req.params.id, { pinned: req.body.pinned }, { new: true }
+    );
+    if (!countdown) return res.status(404).json({ error: 'Countdown not found.' });
+    res.status(200).json(countdown);
   } catch (error) {
     next(error);
   }

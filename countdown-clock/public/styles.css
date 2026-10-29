@@ -220,3 +220,51 @@ input[aria-invalid='true'], textarea[aria-invalid='true'] { border-color: var(--
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+
+/* Toolbar, filters, categories, pinning */
+.toolbar { display: flex; flex-wrap: wrap; gap: 0.7rem; align-items: center; margin-bottom: 1.5rem; }
+.toolbar__search { flex: 1; min-width: 200px; width: auto; border-radius: 14px; }
+.toolbar__select {
+  width: auto; font: inherit; color: var(--text); cursor: pointer;
+  background: rgba(0, 0, 0, 0.3); border: 1px solid var(--border); border-radius: 12px; padding: 0.7rem 0.9rem;
+}
+.field .toolbar__select { width: 100%; }
+.toolbar__select option { background: #18122e; }
+.chips { display: flex; gap: 0.4rem; }
+.chip {
+  font: inherit; font-size: 0.88rem; font-weight: 600; cursor: pointer; color: var(--text-muted);
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px; padding: 0.45rem 1rem;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+.chip:hover { background: var(--surface-strong); }
+.chip[aria-pressed='true'] { background: var(--gradient); border-color: transparent; color: #fff; }
+.no-results { text-align: center; color: var(--text-muted); padding: 3rem 0; }
+
+.card { --accent: #fbbf24; border-top: 3px solid var(--accent); }
+.card[data-category='personal'] { --accent: #8b5cf6; }
+.card[data-category='work'] { --accent: #3b82f6; }
+.card[data-category='travel'] { --accent: #34d399; }
+.card[data-category='celebration'] { --accent: #ec4899; }
+.tag {
+  display: inline-block; margin-bottom: 0.35rem; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--accent);
+}
+.card--pinned { box-shadow: 0 20px 50px rgba(5, 3, 20, 0.45), 0 0 0 1px var(--accent); }
+.icon-btn--pin[aria-pressed='true'] { border-color: var(--accent); color: var(--accent); }
+
+/* Large-screen scaling: type, spacing and layout grow with the viewport */
+html { font-size: 100%; }
+@media (min-width: 1200px) { html { font-size: 112.5%; } }
+@media (min-width: 1600px) { html { font-size: 125%; } }
+@media (min-width: 2200px) { html { font-size: 150%; } }
+
+.navbar__inner, .container { max-width: min(92rem, 94vw); }
+.grid { grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); }
+.brand__logo { width: 2.1rem; height: 2.1rem; }
+.stat { min-width: 6.5rem; }
+.dialog { width: min(94vw, 32.5rem); }
+.dialog--small { width: min(94vw, 26rem); }
+.toolbar__search { min-width: 12rem; }
+
+.icon-btn--complete:hover { border-color: var(--success); color: #a7f3d0; }

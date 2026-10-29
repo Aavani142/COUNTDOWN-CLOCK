@@ -18,6 +18,13 @@ const countdownSchema = new mongoose.Schema(
       type: Date,
       required: [true, 'Target date is required.'],
     },
+    category: {
+      type: String,
+      enum: ['personal', 'work', 'travel', 'celebration', 'other'],
+      default: 'other',
+    },
+    pinned: { type: Boolean, default: false },
+    completed: { type: Boolean, default: false },
   },
   { timestamps: true } // adds createdAt and updatedAt
 );
